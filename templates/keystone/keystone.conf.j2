@@ -1,0 +1,16 @@
+[DEFAULT]
+admin_token=insecuretoken123
+
+[token]
+provider=keystone.token.providers.uuid.Provider
+driver=keystone.token.persistence.backends.memcache.Token
+
+[database]
+connection=mysql://keystone:keystone@controller01/keystone
+
+[memcache]
+servers=localhost:11211
+
+[revoke]
+driver=keystone.contrib.revoke.backends.sql.Revoke
+

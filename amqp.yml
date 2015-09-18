@@ -1,0 +1,13 @@
+- hosts: controller
+  tasks: 
+  - name: Install RabbitMQ Server
+    apt: name=rabbitmq-server state=present
+    
+  - name: Configure RabbitMQ Server
+    rabbitmq_user: user=openstack
+                   password=rabbit
+                   vhost=/
+                   configure_priv=.*
+                   read_priv=.*
+                   write_priv=.*
+                   state=present

@@ -1,0 +1,89 @@
+- hosts: controller
+  tasks: 
+  - name: Install Keystone DB
+    mysql_db: name=keystone state=present
+
+  - name: Create Keystone user in MySQL
+    mysql_user: name=keystone password=keystone host="{{item}}" priv=keystone.*:ALL,GRANT state=present
+    with_items:
+      - "%"
+      - 127.0.0.1
+      - ::1
+      - localhost
+
+  - name: Override Keystone service
+    template: src=templates/keystone/etc.init.keystone.override dest=/etc/init/keystone.override
+
+  - name: Install Keystone packages
+    apt: name={{item}} state=installed
+    with_items:
+      - keystone
+      - python-openstackclient
+      - apache2
+      - libapache2-mod-wsgi
+      - memcached
+      - python-memcache
+
+  - name: Check for Keystone Lite DB
+    stat: path=/var/lib/keystone/keystone.db
+    register: keystone_db
+    
+  - name: Delete Keystone Lite DB (if necessary)
+    command: rm -f /var/lib/keystone/keystone.db
+    when: keystone_db.stat.exists == True
+
+  - name: Populate Keystone DB (if necessary)
+    keystone_manage: action=db_sync
+
+  - name: Create keystone.conf
+    template: src=templates/keystone/keystone.conf.j2 dest=/etc/keystone/keystone.conf
+
+  - name: Create WSGI 
+    template: src=templates/keystone/wsgi-keystone.conf.j2 dest=/etc/apache2/sites-available/wsgi-keystone.conf
+
+  - name: Enable WSGI file
+    file: src=/etc/apache2/sites-available/wsgi-keystone.conf dest=/etc/apache2/sites-enabled/wsgi-keystone.conf owner=root group=root state=link
+
+  - name: Create Keystone CGI directory
+    file: path=/var/www/cgi-bin/keystone owner=keystone group=keystone state=directory
+
+  - name: Create Keystone CGI main
+    get_url: url=http://git.openstack.org/cgit/openstack/keystone/plain/httpd/keystone.py?h=stable/kilo dest=/var/www/cgi-bin/keystone/main mode=0755
+    
+  - name: Create Keystone CGI admin
+    get_url: url=http://git.openstack.org/cgit/openstack/keystone/plain/httpd/keystone.py?h=stable/kilo dest=/var/www/cgi-bin/keystone/admin mode=0755
+
+  - name: Restart Apache
+    action: service name=apache2 state=restarted enabled=true
+
+  - name: Configure Keystone endpoint
+    keystone_service:
+      token=insecuretoken123
+      name=keystone
+      type=identity
+      description="Keystone Identity Service"
+      publicurl=http://controller01:5000/v2.0
+      internalurl=http://controller01:5000/v2.0
+      adminurl=http://controller01:35357/v2.0
+
+  - name: Create admin tenant
+    keystone_user: token=insecuretoken123 tenant=admin tenant_description="admin project"   
+  - name: Create demo tenant
+    keystone_user: token=insecuretoken123 tenant=demo tenant_description="demo project"
+  - name: Create service tenant
+    keystone_user: token=insecuretoken123 tenant=service tenant_description="service project"
+    
+  - name: Create admin user
+    keystone_user: token=insecuretoken123 tenant=admin user=admin password=secrete
+  - name: Create demo user
+    keystone_user: token=insecuretoken123 tenant=demo user=demo password=demo    
+  - name: Assign admin role
+    keystone_user: token=insecuretoken123 role=admin user=admin tenant=admin
+  - name: Assign user role
+    keystone_user: token=insecuretoken123 role=user user=demo tenant=demo
+
+  - name: Create admin.rc
+    template: src=templates/keystone/admin.rc.j2 dest=~/adminrc
+    
+  - name: Create demo.rc
+    template: src=templates/keystone/demo.rc.j2 dest=~/demorc

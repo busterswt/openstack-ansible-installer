@@ -1,0 +1,39 @@
+- hosts: all
+  tasks:
+  - name: Apt Update
+    apt: update_cache=yes
+
+  - name: Install Cloud Keyring
+    apt: name=ubuntu-cloud-keyring state=present
+
+  - name: Install Kilo Repo
+    apt_repository: repo='deb http://ubuntu-cloud.archive.canonical.com/ubuntu trusty-updates/kilo main' state=present
+
+  - name: Install prerequisite packages
+    apt: pkg={{item}} state=installed
+    with_items:
+      - crudini
+      - curl
+      - ntp
+      - python-pip
+    notify: 
+      - Restart NTP
+
+  - name: Apt Upgrade
+    apt: upgrade=dist update_cache=yes
+      
+  handlers:
+  - name: Restart NTP
+    service: name=ntp state=restarted
+
+- hosts: compute
+  tasks:
+  - name: Reboot compute nodes (if necessary) 
+    command: /sbin/reboot removes=/var/run/reboot-required
+    register: reboot
+
+  - name: Wait for the server to reboot (this takes at least 30 seconds)
+    local_action: wait_for port=22 host="{{ ansible_ssh_host | default(inventory_hostname) }}" search_regex=OpenSSH delay=30
+    when: reboot.changed
+
+
