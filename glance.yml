@@ -1,0 +1,110 @@
+- hosts: controller
+  tasks: 
+  - name: Install Glance DB
+    mysql_db: name=glance state=present
+
+  - name: Create Glance user in MySQL
+    mysql_user: name=glance password=glance host="{{item}}" priv=glance.*:ALL,GRANT state=present
+    with_items:
+      - "%"
+      - 127.0.0.1
+      - ::1
+      - localhost
+
+  - name: Create glance user
+    keystone_user: token=insecuretoken123 tenant=service user=glance password=glance
+  - name: Assign admin role
+    keystone_user: token=insecuretoken123 role=admin user=glance tenant=service
+
+  - name: Install Glance packages
+    apt: pkg={{item}} state=installed
+    with_items:
+      - glance
+      - python-glanceclient
+
+  - name: Check for Glance Lite DB
+    stat: path=/var/lib/glance/glance.db
+    register: glance_db
+    
+  - name: Delete Glance Lite DB (if necessary)
+    command: rm -f /var/lib/glance/glance.db
+    when: glance_db.stat.exists == True
+
+  - name: Create glance-api.conf
+    template: src=templates/glance/glance-api.conf.j2 dest=/etc/glance/glance-api.conf
+    
+  - name: Create glance-registry.conf
+    template: src=templates/glance/glance-registry.conf.j2 dest=/etc/glance/glance-registry.conf
+
+  - name: Populate Glance DB (if necessary)
+    glance_manage: action=db_sync
+
+  - name: Restart Glance API
+    action: service name=glance-api state=restarted enabled=true
+
+  - name: Restart Glance Registry
+    action: service name=glance-registry state=restarted enabled=true
+    
+## Configure Glance endpoints
+
+  - name: Configure Glance endpoint
+    keystone_service:
+      token=insecuretoken123
+      name=glance
+      type=image
+      description="Glance Image Service"
+      publicurl=http://controller01:9292
+      internalurl=http://controller01:9292
+      adminurl=http://controller01:9292
+
+## Download images
+
+  - name: Create images directory
+    file: path=/var/tmp/images owner=root group=root state=directory
+
+  - name: Check for Cirros image
+    stat: path=/var/tmp/images/cirros-0.3.4-x86_64-disk.img
+    register: cirros_img
+    
+  - name: Download Cirros image (if necessary)
+    get_url: url=http://download.cirros-cloud.net/0.3.4/cirros-0.3.4-x86_64-disk.img dest=/var/tmp/images/cirros-0.3.4-x86_64-disk.img
+    when: not cirros_img.stat.exists
+
+  - name: Check for Ubuntu image
+    stat: path=/var/tmp/images/trusty-server-cloudimg-amd64-disk1.img
+    register: ubuntu_img
+    
+  - name: Download Ubuntu image (if necessary)
+    get_url: url=https://cloud-images.ubuntu.com/trusty/current/trusty-server-cloudimg-amd64-disk1.img dest=/var/tmp/images/trusty-server-cloudimg-amd64-disk1.img
+    when: not ubuntu_img.stat.exists
+
+## Upload images
+
+## Upload images
+
+  - name: Upload Cirros image
+    glance: 
+      name=Cirros_0.3.4_x86_64 
+      file=/var/tmp/images/cirros-0.3.4-x86_64-disk.img
+      disk_format=qcow2 
+      is_public=true 
+      user=admin 
+      tenant=admin 
+      password=secrete 
+      region=RegionOne 
+      auth_url=http://controller01:5000/v2.0
+    when: cirros_img.stat.exists
+
+  - name: Upload Ubuntu image
+    glance: 
+      name=Ubuntu_Trusty_Server_14.04_LTS
+      file=/var/tmp/images/trusty-server-cloudimg-amd64-disk1.img
+      disk_format=qcow2 
+      is_public=true 
+      user=admin 
+      tenant=admin 
+      password=secrete 
+      region=RegionOne 
+      auth_url=http://controller01:5000/v2.0
+    when: ubuntu_img.stat.exists
+
