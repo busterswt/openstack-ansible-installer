@@ -11,14 +11,14 @@ git clone https://github.com/busterswt/openstack-ansible-modules.git
 ```
 
 Create an inventory at ~/openstack-ansible-installer/hosts that consists of the nodes and respective details:
-
 ```
 [controller]
-controller01
+controller01 mgmt_addr=<IPv4 addr for mgmt traffic> overlay_addr=<IPv4 addr for overlay traffic>
 
 [compute]
-compute01
+compute01 mgmt_addr=<IPv4 addr for mgmt traffic> overlay_addr=<IPv4 addr for overlay traffic>
 ```
+Additional compute nodes can be added as needed.
 
 Copy the public key from the deploy host to each host listed in the inventory. Ensure that /etc/hosts has been updated on the deploy host.
 
