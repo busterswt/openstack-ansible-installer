@@ -1,0 +1,59 @@
+- hosts: controller
+  tasks:
+  - name: Install Nova DB
+    mysql_db: name=nova state=present
+
+  - name: Create Nova user in MySQL
+    mysql_user: name=nova password=nova host="{{item}}" priv=nova.*:ALL,GRANT state=present
+    with_items:
+      - "%"
+      - 127.0.0.1
+      - ::1
+      - localhost
+
+  - name: Install Nova (controller) packages
+    apt: name={{item}} state=installed
+    with_items:
+      - nova-api
+      - nova-cert
+      - nova-conductor
+      - nova-consoleauth
+      - nova-novncproxy
+      - nova-scheduler
+      - python-novaclient
+
+  - name: Check for Nova Lite DB
+    stat: path=/var/lib/nova/nova.sqlite
+    register: nova_db
+
+  - name: Delete Nova Lite DB (if necessary)
+    command: rm -f /var/lib/nova/nova.sqlite
+    when: nova_db.stat.exists
+
+  - name: Populate Nova DB (if necessary)
+    nova_manage: action=db_sync
+
+  - name: Create nova.conf
+    template: src=templates/nova/nova.conf.j2 dest=/etc/nova/nova.conf
+
+  - name: Configure Nova endpoint
+    keystone_service:
+      token=insecuretoken123
+      name=nova
+      type=compute
+      description="Nova Compute Service"
+      publicurl=http://controller01:8774/v2/%\(tenant_id\)s
+      internalurl=http://controller01:8774/v2/%\(tenant_id\)s
+      adminurl=http://controller01:8774/v2/%\(tenant_id\)s
+      region=RegionOne
+      
+  - name: Restart Nova Services
+    action: service name={{item}} state=restarted enabled=true
+    with_items:
+      - nova-api
+      - nova-cert
+      - nova-consoleauth
+      - nova-scheduler
+      - nova-conductor
+      - nova-novncproxy
+

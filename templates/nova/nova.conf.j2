@@ -1,0 +1,31 @@
+# Configure Nova
+[database] 
+connection=mysql://nova:nova@controller01/nova
+
+[DEFAULT] 
+rpc_backend=rabbit
+my_ip={{ mgmt_addr }}
+vncserver_listen={{ mgmt_addr }}
+vncserver_proxyclient_address={{ hostvars['controller01']['mgmt_addr'] }}
+auth_strategy=keystone
+
+[oslo_messaging_rabbit] 
+rabbit_host=controller01
+rabbit_userid=openstack
+rabbit_password=rabbit
+
+[keystone_authtoken] 
+auth_uri=http://controller01:5000
+auth_url=http://controller01:35357
+auth_plugin=password
+project_domain_id=default
+user_domain_id=default
+project_name=service
+username=nova
+password=nova
+
+[glance] 
+host=controller01
+
+[oslo_concurrency] 
+lock_path=/var/lib/nova/tmp
