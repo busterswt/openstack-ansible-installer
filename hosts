@@ -1,0 +1,5 @@
+[controller]
+controller01 mgmt_addr=10.10.10.100 overlay_addr=172.18.0.100
+
+[compute]
+#compute01 mgmt_addr=10.10.10.101 overlay_addr=172.18.0.101

@@ -30,7 +30,7 @@
     
   - name: Delete Keystone Lite DB (if necessary)
     command: rm -f /var/lib/keystone/keystone.db
-    when: keystone_db.stat.exists == True
+    when: keystone_db.stat.exists
 
   - name: Populate Keystone DB (if necessary)
     keystone_manage: action=db_sync

@@ -78,7 +78,6 @@
     get_url: url=https://cloud-images.ubuntu.com/trusty/current/trusty-server-cloudimg-amd64-disk1.img dest=/var/tmp/images/trusty-server-cloudimg-amd64-disk1.img
     when: not ubuntu_img.stat.exists
 
-## Upload images
 
 ## Upload images
 
@@ -93,7 +92,6 @@
       password=secrete 
       region=RegionOne 
       auth_url=http://controller01:5000/v2.0
-    when: cirros_img.stat.exists
 
   - name: Upload Ubuntu image
     glance: 
@@ -106,5 +104,4 @@
       password=secrete 
       region=RegionOne 
       auth_url=http://controller01:5000/v2.0
-    when: ubuntu_img.stat.exists
 

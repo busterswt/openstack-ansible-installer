@@ -6,9 +6,6 @@
   - name: Install Cloud Keyring
     apt: name=ubuntu-cloud-keyring state=present
 
-  - name: Install Kilo Repo
-    apt_repository: repo='deb http://ubuntu-cloud.archive.canonical.com/ubuntu trusty-updates/kilo main' state=present
-
   - name: Install prerequisite packages
     apt: pkg={{item}} state=installed
     with_items:
@@ -16,8 +13,13 @@
       - curl
       - ntp
       - python-pip
+      - python-pycurl
+      - software-properties-common
     notify: 
       - Restart NTP
+
+  - name: Install Kilo Repo
+    apt_repository: repo='deb http://ubuntu-cloud.archive.canonical.com/ubuntu trusty-updates/kilo main' state=present
 
   - name: Apt Upgrade
     apt: upgrade=dist update_cache=yes
