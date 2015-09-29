@@ -1,0 +1,23 @@
+- hosts: controller
+  tasks: 
+
+  - name: Install Horizon
+    apt: pkg={{item}} state=installed
+    with_items:
+      - openstack-dashboard
+    
+  - name: Set hostname in local_settings.py
+    command: sed -i '/OPENSTACK_HOST \=/c\OPENSTACK_HOST = \"controller01\"' /etc/openstack-dashboard/local_settings.py
+
+  - name: Set default role
+    command: sed -i '/OPENSTACK_KEYSTONE_DEFAULT_ROLE \=/c\OPENSTACK_KEYSTONE_DEFAULT_ROLE = \"user\"' /etc/openstack-dashboard/local_settings.py 
+
+  - name: Remove Ubuntu theme
+    apt: pkg={{item}} state=removed
+    with_items:
+      - openstack-dashboard-ubuntu-theme
+
+  - name: Restart Apache
+    action: service name={{item}} state=restarted enabled=true
+    with_items:
+      - apache2
