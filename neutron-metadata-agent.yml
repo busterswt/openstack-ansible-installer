@@ -1,0 +1,29 @@
+- hosts: controller
+  tasks:
+
+  - name: Install Neutron metadata agent
+    apt: name={{item}} state=installed
+    with_items:
+      - neutron-common
+      - neutron-metadata-agent
+
+  - name: Build metadata agent configuration file
+    template: src=templates/neutron/metadata_agent.ini.j2 dest=/etc/neutron/metadata_agent.ini
+
+  - name: Configure metadata secret in Nova conf
+    ini_file: dest=/etc/nova/nova.conf
+              section=neutron
+              option=metadata_proxy_shared_secret
+              value=insecuresecret123
+
+  - name: Enable metadata proxy
+    ini_file: dest=/etc/nova/nova.conf
+              section=neutron
+              option=service_metadata_proxy
+              value=true
+
+  - name: Restart Neutron and Nova Services
+    action: service name={{item}} state=restarted enabled=true
+    with_items:
+      - neutron-metadata-agent
+      - nova-api

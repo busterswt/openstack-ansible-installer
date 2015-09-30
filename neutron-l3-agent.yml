@@ -1,0 +1,52 @@
+- hosts: controller
+  tasks:
+  - name: Install Neuton DB
+    mysql_db: name=neutron state=present
+
+  - name: Create Neutron user in MySQL
+    mysql_user: name=neutron password=neutron host="{{item}}" priv=neutron.*:ALL,GRANT state=present
+    with_items:
+      - "%"
+      - 127.0.0.1
+      - ::1
+      - localhost
+
+  - name: Install Neutron (controller) packages
+    apt: name={{item}} state=installed
+    with_items:
+      - neutron-server
+      - neutron-common
+      - neutron-dhcp-agent
+      - neutron-metadata-agent
+      - neutron-plugin-ml2
+      - python-neutronclient
+
+  - name: Create neutron.conf
+    template: src=templates/nova/nova.conf.j2 dest=/etc/nova/nova.conf
+
+  - name: Create neutron user in Keystone
+    keystone_user: token=insecuretoken123 tenant=service user=neutron password=neutron
+  - name: Assign admin role to user
+    keystone_user: token=insecuretoken123 role=admin user=neutron tenant=service
+
+  - name: Configure Neutron endpoint
+    keystone_service:
+      token=insecuretoken123
+      name=neutron
+      type=network
+      description="Neutron Networking Service"
+      publicurl=http://controller01:9696
+      internalurl=http://controller01:9696
+      adminurl=http://controller01:9696
+      region=RegionOne
+      
+  - name: Restart Nova Services
+    action: service name={{item}} state=restarted enabled=true
+    with_items:
+      - nova-api
+      - nova-cert
+      - nova-consoleauth
+      - nova-scheduler
+      - nova-conductor
+      - nova-novncproxy
+

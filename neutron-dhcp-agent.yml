@@ -1,0 +1,17 @@
+- hosts: controller
+  tasks:
+
+  - name: Install Neutron DHCP agent
+    apt: name={{item}} state=installed
+    with_items:
+      - neutron-common
+      - neutron-dhcp-agent
+
+  - name: Build DHCP agent configuration file
+    template: src=templates/neutron/dhcp_agent.ini.j2 dest=/etc/neutron/dhcp_agent.ini
+
+  - name: Restart Neutron Services
+    action: service name={{item}} state=restarted enabled=true
+    with_items:
+      - neutron-dhcp-agent
+
