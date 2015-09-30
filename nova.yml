@@ -36,7 +36,7 @@
     when: nova_db.stat.exists
 
   - name: Copy nova configuration to controller
-    template: src=templates/nova/controller.nova.conf.j2 dest=/etc/nova/nova.conf
+    template: src=templates/nova/controller/nova.conf.j2 dest=/etc/nova/nova.conf
     
 ## Configure Nova endpoints
 

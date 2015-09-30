@@ -1,0 +1,57 @@
+- hosts: controller
+  tasks: 
+  - name: Install Neutron DB
+    mysql_db: name=neutron state=present
+
+  - name: Create Neutron user in MySQL
+    mysql_user: name=neutron password=neutron host="{{item}}" priv=neutron.*:ALL,GRANT state=present
+    with_items:
+      - "%"
+      - 127.0.0.1
+      - ::1
+      - localhost
+    
+  - name: Create neutron user in Keystone
+    keystone_user: token=insecuretoken123 tenant=service user=neutron password=neutron
+  - name: Assign admin role to user
+    keystone_user: token=insecuretoken123 role=admin user=neutron tenant=service
+
+  - name: Install Neutron packages on controller
+    apt: pkg={{item}} state=installed
+    with_items:
+      - neutron-common
+      - neutron-server
+      - neutron-plugin-ml2 
+      - python-neutronclient 
+    
+  - name: Copy neutron configuration to controller
+    template: src=templates/neutron/controller.neutron.conf.j2 dest=/etc/neutron/neutron.conf
+
+
+## Configure Neutron endpoints
+
+  - name: Configure Neutron endpoint
+    keystone_service:
+      token=insecuretoken123
+      name=neutron
+      type=network
+      description="Neutron Network Service"
+      publicurl=http://controller01:8774/v2/%\(tenant_id\)s
+      internalurl=http://controller01:8774/v2/%\(tenant_id\)s
+      adminurl=http://controller01:8774/v2/%\(tenant_id\)s
+
+  - name: Populate Neutron DB (if necessary)
+    shell: /bin/sh -c "neutron-db-manage --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/ml2_conf.ini upgrade head" neutron
+
+# Set sysctl settings
+  - sysctl: name="net.ipv4.ip_forward" value=1 sysctl_set=yes state=present reload=yes
+  - sysctl: name="net.ipv4.conf.default.rp_filter" value=0 sysctl_set=yes state=present reload=yes
+  - sysctl: name="net.ipv4.conf.all.rp_filter" value=0 sysctl_set=yes state=present reload=yes
+
+  - name: Restart Neutron and Nova Services
+    action: service name={{item}} state=restarted enabled=true
+    with_items:
+      - nova-api
+      - nova-scheduler
+      - nova-conductor
+      - neutron-server
